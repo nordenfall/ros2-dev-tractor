@@ -1,11 +1,11 @@
 {
     "name": "ROS 2 Development Container",
     "privileged": true,
-    "remoteUser": "norden",
+    "remoteUser": "norden", //change to your actual device name
     "build": {
         "dockerfile": "Dockerfile",
         "args": {
-            "USERNAME": "norden"
+            "USERNAME": "norden" //change to your actual device name
         }
     },
     "workspaceFolder": "/home/ws",
@@ -37,5 +37,5 @@
        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
        "source=/dev/dri,target=/dev/dri,type=bind,consistency=cached"
     ],
-    "postCreateCommand": "sudo rosdep update && sudo rosdep install --from-paths src --ignore-src -y && sudo chown -R $(whoami) /home/ws/"
+    "postCreateCommand": "sudo rosdep update && sudo rosdep install --from-paths src --ignore-src -y && sudo chown -R $(whoami) /home/ws/ && sudo apt install ros-$ROS_DISTRO-rviz2 -y"
 }

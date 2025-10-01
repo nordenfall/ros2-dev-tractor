@@ -1,4 +1,6 @@
-FROM ros:humble
+#choose your ros2 version 
+FROM ros:humble 
+
 ARG USERNAME=USERNAME
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
