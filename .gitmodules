@@ -4,3 +4,6 @@
 [submodule "ws/src/Livox-SDK2"]
 	path = ws/src/Livox-SDK2
 	url = https://github.com/Livox-SDK/Livox-SDK2.git
+[submodule "ws/src/UsbCam"]
+	path = ws/src/UsbCam
+	url = https://github.com/ros-drivers/usb_cam.git
