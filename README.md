@@ -11,3 +11,7 @@
 - execute ./build.sh from src/livox_ros_driver2;
 - execute "source install/setup.sh" to activate build venv (correct venvs' activating order is humble venv -> build venv in single terminal);
 - launch rviz2 using livox driver with "ros2 launch livox_ros_driver2 rviz_*your lidar*_launch.py";
+
+сука установить зависимости через росдодеп, буилд эс аш делать с аргументом хуба буба 
+
+cerf ecnfyjdbnm sudo apt install ros-хуба буба-rviz2 -y
