@@ -8,7 +8,8 @@ services:
     build:
       context: ws/.devcontainer/
       args:
-        USERNAME: jtsn
+        USERNAME: "${USERNAME}"
+        ROS_DIS: "${ROS_DIS}"
     volumes:
       - .:/home/jtsn/
       # Монтируем X11 сокет для графических приложений
