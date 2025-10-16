@@ -6,16 +6,16 @@ services:
     security_opt:
       - no-new-privileges:false
     build:
-      context: ws/.devcontainer/
+      dockerfile: ws/.devcontainer/Dockerfile
       args:
-        USERNAME: "${USERNAME}"
-        ROS_DIS: "${ROS_DIS}"
+        USERNAME: ${USERNAME}
+        ROS_DISTRO: ${ROS_DISTRO}
     volumes:
-      - .:/home/jtsn/
+      - .:/home/${USERNAME}/
       # Монтируем X11 сокет для графических приложений
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       # Монтируем директорию с авторизацией X11
-      - ~/.Xauthority:/home/jtsn/.Xauthority:rw
+      - ~/.Xauthority:/home/${USERNAME}/.Xauthority:rw
     environment:
       # Устанавливаем DISPLAY для вывода графики
       - DISPLAY=${DISPLAY}
