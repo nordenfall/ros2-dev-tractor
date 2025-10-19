@@ -20,9 +20,8 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y python3-pip
+RUN apt-get install -y python3-pip 
 ENV SHELL /bin/bash
-
 
 # ********************************************************
 # * Anything else you want to do like clean up goes here *
@@ -31,7 +30,7 @@ RUN mkdir -p src/ros2_pkg
 COPY ../ws/src/livox_ros_driver2/package_ROS2.xml src/ros2_pkg/package.xml
 RUN sudo rosdep update
 RUN sudo rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y
-RUN sudo apt install ros-${ROS_DISTRO}-rviz2 -y
+RUN sudo apt install ros-${ROS_DISTRO}-rviz2 cmake -y
 RUN rm -rdf src/
 # ********************************************************
 
