@@ -11,6 +11,7 @@ services:
         USERNAME: ${USERNAME}
         ROS_DISTRO: ${ROS_DISTRO}
     volumes:
+      - ./ws/data/kitti/velodyne:/data/kitti/velodyne
       - .:/home/${USERNAME}/
       # Монтируем X11 сокет для графических приложений
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
