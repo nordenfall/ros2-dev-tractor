@@ -9,7 +9,7 @@ KittiWriterNode::KittiWriterNode()
 : rclcpp::Node("kitti_writer_node")
 {
   // параметры (с дефолтами)
-  input_topic_     = this->declare_parameter<std::string>("input_topic", "/livox/points");
+  input_topic_     = this->declare_parameter<std::string>("input_topic", "/livox/lidar/");
   output_dir_      = this->declare_parameter<std::string>("output_dir", "/data/kitti/velodyne/");
   target_frame_    = this->declare_parameter<std::string>("target_frame", "base_link");
   write_bin_       = this->declare_parameter<bool>("write_bin", true);
@@ -45,7 +45,6 @@ bool KittiWriterNode::ensureOutputDir() {
   std::error_code ec;
   fs::create_directories(output_dir_, ec);
   if (ec) return false;
-  // timestamps.txt рядом
   return true;
 }
 
