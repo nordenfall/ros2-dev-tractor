@@ -6,6 +6,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.hpp> // doTransform specialization
 #include <filesystem>
+#include <deque>
 #include <fstream>
 #include <optional>
 #include <mutex>
