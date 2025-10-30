@@ -20,3 +20,5 @@ if [[ ! -d ../../build/kitti_writer ]]; then
     source /opt/ros/$ROS_DISTRO/setup.bash
     colcon build --packages-select kitti_writer
 fi
+
+chown 
