@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  base:
+    network_mode: host
+    security_opt:
+      - no-new-privileges:false
+    build:
+      dockerfile: ws/.devcontainer/Dockerfile
+      args:
+        USERNAME: ${USERNAME}
+        ROS_DISTRO: ${ROS_DISTRO}
+    volumes:
+      - .:/home/${USERNAME}/
+      # Монтируем X11 сокет для графических приложений
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Монтируем директорию с авторизацией X11
+      - ~/.Xauthority:/home/${USERNAME}/.Xauthority:rw
+    environment:
+      # Устанавливаем DISPLAY для вывода графики
+      - DISPLAY=${DISPLAY}
+      # QT_GRAPHICSSYSTEM для совместимости с Qt приложениями
+      - QT_GRAPHICSSYSTEM=native
+    stdin_open: true
+    tty: true
