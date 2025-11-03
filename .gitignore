@@ -2,3 +2,4 @@
 .ros
 .rviz2
 .Xauthority
+ws/data/kitti/velodyne/*
