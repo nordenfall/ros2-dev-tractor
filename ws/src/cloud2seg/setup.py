@@ -20,6 +20,7 @@ setup(
     entry_points={
         'console_scripts': [
             'pcd_projector_node = cloud2seg.pcd_projector_node:main',
+            'pcd_projector_calib = cloud2seg.pcd_projector_node_calib:main',
         ],
     },
 )
