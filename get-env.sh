@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-#extract username
 USERNAME="$(id -un)"
 if grep -q '^USERNAME=' .env 2>/dev/null; then
   sed -i "s/^USERNAME=.*/USERNAME=${USERNAME}/" .env
