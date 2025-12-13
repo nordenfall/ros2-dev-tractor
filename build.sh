@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ./get-env.sh
+git submodule update --init --recursive
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
