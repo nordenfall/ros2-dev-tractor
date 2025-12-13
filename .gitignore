@@ -4,3 +4,4 @@
 .Xauthority
 ws/data/rellis/bags/bag*
 ws/data/rellis/samples/*
+.bash_history
