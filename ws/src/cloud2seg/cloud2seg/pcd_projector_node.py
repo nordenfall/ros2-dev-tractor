@@ -67,7 +67,6 @@ class PcdProjector(Node):
     def __init__(self):
         super().__init__('pcd_projector')
 
-        # ------- параметры -------
         self.declare_parameter('image_topic', '/camera/image')
         self.declare_parameter('caminfo_topic', '/camera/camera_info')
         self.declare_parameter('cloud_topic', '/lidar/points')
@@ -76,15 +75,11 @@ class PcdProjector(Node):
         self.declare_parameter('camera_frame', 'camera')
         self.declare_parameter('lidar_frame', 'lidar')
 
-        # какие классы считаем препятствиями (ID из сегментации)
-        # пример: 3=куст, 4=пень, 5=камень, 6=дом
         self.declare_parameter('obstacle_classes', [3, 4, 5, 6])
 
-        # фильтры по дальности
         self.declare_parameter('zmin', 0.05)
         self.declare_parameter('zmax', 200.0)
-        self.declare_parameter('rmax', 0.0)  # 0 = без ограничения
-
+        self.declare_parameter('rmax', 0.0)  
         self.image_topic = self.get_parameter('image_topic').value
         self.caminfo_topic = self.get_parameter('caminfo_topic').value
         self.cloud_topic = self.get_parameter('cloud_topic').value
@@ -101,12 +96,10 @@ class PcdProjector(Node):
 
         self.bridge = CvBridge()
 
-        # ------- TF -------
         tf_qos = QoSProfile(depth=10)
         self.tf_buffer = tf2_ros.Buffer(cache_time=Duration(seconds=10.0))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self, qos=tf_qos)
 
-        # ------- подписчики + синхронизация -------
         self.sub_img = Subscriber(self, Image, self.image_topic)
         self.sub_cam = Subscriber(self, CameraInfo, self.caminfo_topic)
         self.sub_pcd = Subscriber(self, PointCloud2, self.cloud_topic)
@@ -119,10 +112,6 @@ class PcdProjector(Node):
         )
         self.ats.registerCallback(self.sync_cb)
 
-        # ------- паблишер детекций -------
-        # формат данных:
-        # [x, y, z, size_x, size_y, size_z, class_id,
-        #  x2, y2, z2, size_x2, size_y2, size_z2, class_id2, ...]
         self.pub_obstacles = self.create_publisher(
             Float32MultiArray,
             'obstacles_3d',
@@ -140,7 +129,6 @@ class PcdProjector(Node):
             f"  zmin={self.zmin} zmax={self.zmax} rmax={self.rmax}"
         )
 
-    # ------------------ основной коллбек ------------------
     def sync_cb(self, img_msg, cam_msg, cloud_msg, seg_msg):
         # K, D
         K = np.array(cam_msg.k, dtype=np.float64).reshape(3, 3)

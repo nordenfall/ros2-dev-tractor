@@ -17,9 +17,7 @@ from cv_bridge import CvBridge
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 
 
-# ---------------------------------------------------------------------
-#         ⚠️  ФУНКЦИЯ ИЗВЛЕЧЕНИЯ XYZ ИЗ PointCloud2
-# ---------------------------------------------------------------------
+
 def pc2_to_xyz(msg: PointCloud2):
     step = msg.point_step
     buf = memoryview(msg.data)
@@ -41,34 +39,11 @@ def pc2_to_xyz(msg: PointCloud2):
     keep = ~((pts[:,0]==0) & (pts[:,1]==0) & (pts[:,2]==0))
     return pts[keep].astype(np.float64)
 
-
-# ---------------------------------------------------------------------
-#                НОДА С ХАРДКОДОМ КАЛИБРОВОК
-# ---------------------------------------------------------------------
 class PcdProjectorHardcoded(Node):
     def __init__(self):
         super().__init__('pcd_projector_hardcoded')
 
         self.bridge = CvBridge()
-
-        # --------------------------------------------------------------
-        #  ⚠️  ВПИШИ СВОИ INTRINSICS (матрица K и вектор D)
-        # --------------------------------------------------------------
-        #
-        # Эти параметры берутся из калибровки камеры.
-        # Что вписывать:
-        #
-        #   fx, fy — фокусные расстояния по X и Y в пикселях
-        #   cx, cy — центр изображения
-        #   D      — дисторсия (обычно 5 коэффициентов)
-        #
-        # Где взять:
-        #   - из файла camera.yaml
-        #   - из результата camera_calibration
-        #   - из RELLIS dataset camera intrinsics
-        #
-        # Пример ниже — ПРИМЕРНЫЙ, ПОДСТАВЬ СВОИ:
-        # --------------------------------------------------------------
 
         self.K = np.array([
             [760.0,   0.0, 640.0],
@@ -80,30 +55,6 @@ class PcdProjectorHardcoded(Node):
         self.D = np.array([0.01, -0.02, 0.0005, 0.0002, 0.0], dtype=np.float64)
 
         self.get_logger().info("Hardcoded intrinsics loaded")
-
-
-        # --------------------------------------------------------------
-        #  ⚠️  ВПИШИ СВОИ EXTRINSICS (матрица R + вектор t)
-        # --------------------------------------------------------------
-        #
-        # Экстринсики – это положение камеры относительно лидара.
-        #
-        # Формат:
-        #   R — 3x3 rotation matrix
-        #   t — 3x1 translation vector в метрах
-        #
-        # Где взять:
-        #   - из калибровки lidar→camera (hand-eye calibration)
-        #   - из extrinsics.yaml (в Ouster / RELLIS)
-        #   - из матрицы 4x4 T, где верхние 3 строки — R и t
-        #
-        # Как подставлять:
-        #   R = T[:3,:3]
-        #   t = T[:3,3].reshape(3,1)
-        #
-        # --------------------------------------------------------------
-
-        # ↓↓↓ ПРИМЕР — ПОДСТАВИТЬ СВОИ ДАННЫЕ ↓↓↓
 
         self.R = np.array([
             [ 0.9998, -0.0179,  0.0009],
@@ -119,9 +70,6 @@ class PcdProjectorHardcoded(Node):
 
         self.get_logger().info("Hardcoded extrinsics loaded")
 
-        # --------------------------------------------------------------
-        #  Подписчики (без CameraInfo!)
-        # --------------------------------------------------------------
         qos = 10
         self.sub_img = Subscriber(self, Image, '/pylon_camera_node/image_raw')
         self.sub_pcd = Subscriber(self, PointCloud2, '/os1_cloud_node/points')
@@ -140,10 +88,6 @@ class PcdProjectorHardcoded(Node):
             10
         )
 
-
-    # -----------------------------------------------------------------
-    #                      ОСНОВНОЙ CALLBACK
-    # -----------------------------------------------------------------
     def sync_cb(self, img_msg, cloud_msg, seg_msg):
 
         P = pc2_to_xyz(cloud_msg)
@@ -181,10 +125,8 @@ class PcdProjectorHardcoded(Node):
         uv = uv[inframe]
         pts = P2[inframe]
 
-        # ---- ID классов ----
         class_ids = np.array([seg[v, u] for (u, v) in uv], dtype=np.int32)
 
-        # ---- Препятствия: классы считаем вручную ----
         obstacle_classes = [3, 4, 5, 6]
 
         out = []

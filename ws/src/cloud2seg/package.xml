@@ -8,7 +8,7 @@
   <license>MIT</license>
 
   <!-- говорим, что это ament_python-пакет -->
-  <buildtool_depend>ament_python</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
