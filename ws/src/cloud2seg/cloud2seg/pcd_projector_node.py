@@ -22,7 +22,8 @@ from geometry_msgs.msg import TransformStamped
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 
 
-# -------- извлечение XYZ из PointCloud2 --------
+# ---------- utils ----------
+
 def pc2_to_xyz(msg: PointCloud2) -> np.ndarray:
     step = msg.point_step
     buf = memoryview(msg.data)
@@ -45,21 +46,17 @@ def pc2_to_xyz(msg: PointCloud2) -> np.ndarray:
     return pts[keep].astype(np.float64)
 
 
-# -------- кватернион → матрица поворота --------
 def quat_to_rot(q):
     x, y, z, w = q
-    n = np.sqrt(x * x + y * y + z * z + w * w)
+    n = np.sqrt(x*x + y*y + z*z + w*w)
     if n < 1e-9:
         return np.eye(3)
-    x /= n
-    y /= n
-    z /= n
-    w /= n
+    x /= n; y /= n; z /= n; w /= n
 
     return np.array([
-        [1 - 2 * (y * y + z * z),     2 * (x * y - z * w),     2 * (x * z + y * w)],
-        [    2 * (x * y + z * w), 1 - 2 * (x * x + z * z),     2 * (y * z - x * w)],
-        [    2 * (x * z - y * w),     2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+        [1 - 2*(y*y + z*z),     2*(x*y - z*w),     2*(x*z + y*w)],
+        [    2*(x*y + z*w), 1 - 2*(x*x + z*z),     2*(y*z - x*w)],
+        [    2*(x*z - y*w),     2*(y*z + x*w), 1 - 2*(x*x + y*y)],
     ], dtype=np.float64)
 
 
@@ -71,35 +68,41 @@ class PcdProjector(Node):
         self.declare_parameter('caminfo_topic', '/camera/camera_info')
         self.declare_parameter('cloud_topic', '/lidar/points')
         self.declare_parameter('seg_topic', '/segmentation_id')
-
         self.declare_parameter('camera_frame', 'camera')
         self.declare_parameter('lidar_frame', 'lidar')
-
         self.declare_parameter('obstacle_classes', [3, 4, 5, 6])
-
         self.declare_parameter('zmin', 0.05)
         self.declare_parameter('zmax', 200.0)
-        self.declare_parameter('rmax', 0.0)  
+        self.declare_parameter('rmax', 0.0)
+        self.declare_parameter('save_overlay', False)
+        self.declare_parameter('out_dir', '~/ws/data/overlays')
+
+
         self.image_topic = self.get_parameter('image_topic').value
         self.caminfo_topic = self.get_parameter('caminfo_topic').value
         self.cloud_topic = self.get_parameter('cloud_topic').value
         self.seg_topic = self.get_parameter('seg_topic').value
-
         self.camera_frame = self.get_parameter('camera_frame').value
         self.lidar_frame = self.get_parameter('lidar_frame').value
-
         self.obstacle_classes = list(self.get_parameter('obstacle_classes').value)
-
         self.zmin = float(self.get_parameter('zmin').value)
         self.zmax = float(self.get_parameter('zmax').value)
         self.rmax = float(self.get_parameter('rmax').value)
 
+        self.save_overlay = bool(self.get_parameter('save_overlay').value)
+        self.out_dir = os.path.expanduser(self.get_parameter('out_dir').value)
+
+        if self.save_overlay:
+            os.makedirs(self.out_dir, exist_ok=True)
+
         self.bridge = CvBridge()
 
+        # --- TF ---
         tf_qos = QoSProfile(depth=10)
-        self.tf_buffer = tf2_ros.Buffer(cache_time=Duration(seconds=10.0))
+        self.tf_buffer = tf2_ros.Buffer(cache_time=Duration(seconds=10))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self, qos=tf_qos)
 
+        # --- subscribers ---
         self.sub_img = Subscriber(self, Image, self.image_topic)
         self.sub_cam = Subscriber(self, CameraInfo, self.caminfo_topic)
         self.sub_pcd = Subscriber(self, PointCloud2, self.cloud_topic)
@@ -119,31 +122,25 @@ class PcdProjector(Node):
         )
 
         self.get_logger().info(
-            f"[pcd_projector] running\n"
-            f"  image_topic: {self.image_topic}\n"
-            f"  caminfo_topic: {self.caminfo_topic}\n"
-            f"  cloud_topic: {self.cloud_topic}\n"
-            f"  seg_topic: {self.seg_topic}\n"
-            f"  TF: {self.lidar_frame} -> {self.camera_frame}\n"
-            f"  obstacle_classes: {self.obstacle_classes}\n"
-            f"  zmin={self.zmin} zmax={self.zmax} rmax={self.rmax}"
+            f"[pcd_projector]\n"
+            f"  save_overlay={self.save_overlay}\n"
+            f"  out_dir={self.out_dir if self.save_overlay else '(disabled)'}"
         )
 
+    # ---------- callback ----------
+
     def sync_cb(self, img_msg, cam_msg, cloud_msg, seg_msg):
-        # K, D
         K = np.array(cam_msg.k, dtype=np.float64).reshape(3, 3)
         D = np.array(cam_msg.d, dtype=np.float64)
 
-        # TF lidar->camera
         try:
             tf: TransformStamped = self.tf_buffer.lookup_transform(
-                target_frame=self.camera_frame,
-                source_frame=self.lidar_frame,
-                time=Time(),  # latest
-                timeout=Duration(seconds=0.5),
+                self.camera_frame,
+                self.lidar_frame,
+                Time(),
+                Duration(seconds=0.5),
             )
-        except Exception as e:
-            self.get_logger().warn(f"No TF {self.camera_frame}<-{self.lidar_frame}: {e}")
+        except Exception:
             return
 
         R = quat_to_rot((
@@ -158,102 +155,84 @@ class PcdProjector(Node):
             [tf.transform.translation.z],
         ], dtype=np.float64)
 
-        # данные
-        try:
-            seg = self.bridge.imgmsg_to_cv2(seg_msg, desired_encoding='mono16')
-        except Exception:
-            # если сегментация mono8
-            seg = self.bridge.imgmsg_to_cv2(seg_msg, desired_encoding='mono8')
+        seg = self.bridge.imgmsg_to_cv2(seg_msg, desired_encoding='mono16')
         H, W = seg.shape[:2]
 
         P = pc2_to_xyz(cloud_msg)
         if P.size == 0:
             return
 
-        # в СК камеры
         Xc = (R @ P.T) + t
         Zc = Xc[2, :]
         Rng = np.linalg.norm(P, axis=1)
 
         mask = Zc > self.zmin
         if self.zmax > self.zmin:
-            mask &= (Zc < self.zmax)
-        if self.rmax > 0.0:
-            mask &= (Rng < self.rmax)
+            mask &= Zc < self.zmax
+        if self.rmax > 0:
+            mask &= Rng < self.rmax
 
         if not np.any(mask):
             return
 
         P2 = P[mask]
-        X2 = Xc[:, mask]
 
-        # проекция
         rvec, _ = cv2.Rodrigues(R)
-        pts = P2.reshape(-1, 1, 3).astype(np.float64)
-        uv, _ = cv2.projectPoints(pts, rvec, t, K, D)
-        uv = uv.reshape(-1, 2)
+        uv, _ = cv2.projectPoints(
+            P2.reshape(-1, 1, 3), rvec, t, K, D
+        )
+        uvi = np.round(uv.reshape(-1, 2)).astype(int)
 
-        uvi = np.round(uv).astype(int)
         inframe = (
             (uvi[:, 0] >= 0) & (uvi[:, 0] < W) &
             (uvi[:, 1] >= 0) & (uvi[:, 1] < H)
         )
-
         if not np.any(inframe):
             return
 
         uvi = uvi[inframe]
         P2 = P2[inframe]
 
-        # читаем class_id для каждой точки по сегментации
         class_ids = np.array([seg[v, u] for (u, v) in uvi], dtype=np.int32)
 
-        # ---- собираем препятствия ----
         data = []
 
         for cls in self.obstacle_classes:
-            cls_mask = (class_ids == cls)
-            if not np.any(cls_mask):
+            m = (class_ids == cls)
+            if not np.any(m):
                 continue
 
-            pts_cls = P2[cls_mask]  # точки этого класса в СК лидара
-
+            pts_cls = P2[m]
             min_xyz = pts_cls.min(axis=0)
             max_xyz = pts_cls.max(axis=0)
+
             center = (min_xyz + max_xyz) * 0.5
-            size = (max_xyz - min_xyz)
+            size = np.maximum(max_xyz - min_xyz, 0.1)
 
-            # safety: не даём нулевой размер
-            size[size < 0.1] = 0.1
-
-            # пишем в data: x,y,z, size_x, size_y, size_z, class_id
             data.extend([
-                float(center[0]),
-                float(center[1]),
-                float(center[2]),
-                float(size[0]),
-                float(size[1]),
-                float(size[2]),
+                float(center[0]), float(center[1]), float(center[2]),
+                float(size[0]), float(size[1]), float(size[2]),
                 float(cls),
             ])
 
-        msg = Float32MultiArray()
-        msg.data = data
-        self.pub_obstacles.publish(msg)
+        self.pub_obstacles.publish(Float32MultiArray(data=data))
 
-        self.get_logger().debug(
-            f"published {len(data)//7} obstacles"
-        )
+        # ---------- overlay save ----------
+        if self.save_overlay:
+            img = self.bridge.imgmsg_to_cv2(img_msg, 'bgr8')
+            for (u, v) in uvi:
+                cv2.circle(img, (u, v), 2, (0, 0, 255), -1)
+
+            ts = f"{img_msg.header.stamp.sec}_{img_msg.header.stamp.nanosec:09d}"
+            cv2.imwrite(os.path.join(self.out_dir, f"overlay_{ts}.png"), img)
 
 
-def main(args=None):
-    rclpy.init(args=args)
+def main():
+    rclpy.init()
     node = PcdProjector()
-    try:
-        rclpy.spin(node)
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':

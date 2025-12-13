@@ -36,6 +36,8 @@ def generate_launch_description():
                 'zmax': 200.0,
                 'rmax': 0.0,
                 'publish_overlay': False,
+                'save_overlay': False
+
             }]
         )
     ])
