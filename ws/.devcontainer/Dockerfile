@@ -30,7 +30,8 @@ RUN mkdir -p src/ros2_pkg
 COPY ../ws/src/livox_ros_driver2/package_ROS2.xml src/ros2_pkg/package.xml
 RUN sudo rosdep update
 RUN sudo rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y
-RUN sudo apt install ros-${ROS_DISTRO}-rviz2 cmake -y
+RUN sudo apt update && sudo apt install ros-${ROS_DISTRO}-rviz2 cmake -y
+RUN sudo apt install -y ros-humble-image-view ros-humble-pcl-ros ros-humble-pcl-conversions
 RUN rm -rdf src/
 # ********************************************************
 

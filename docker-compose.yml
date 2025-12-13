@@ -12,10 +12,12 @@ services:
         ROS_DISTRO: ${ROS_DISTRO}
     volumes:
       - ./ws/data/kitti/velodyne:/data/kitti/velodyne
+      - ./ws/data/rellis:/data/rellis
       - .:/home/${USERNAME}/
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ~/.Xauthority:/home/${USERNAME}/.Xauthority:rw
     environment:
+      - ROS_DOMAIN_ID=0
       - DISPLAY=${DISPLAY}
       - QT_GRAPHICSSYSTEM=native
     stdin_open: true

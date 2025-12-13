@@ -2,4 +2,5 @@
 .ros
 .rviz2
 .Xauthority
-ws/data/kitti/velodyne/*
+ws/data/rellis/bags/bag*
+ws/data/rellis/samples/*
